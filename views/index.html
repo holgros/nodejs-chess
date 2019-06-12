@@ -1,0 +1,1149 @@
+<!doctype html>
+<html>
+  <head>
+    <title>NodeJS Chess</title>
+	<meta charset="utf-8">
+	<style type="text/css" href="index.css">
+	.black, .white {
+	float: left;
+	display: block;
+	position: relative;	
+}
+.left {
+	clear: both;
+}
+.white {
+	background-color: white;
+}
+.black {
+	background-color: gray;
+}
+.piece {
+	height: 100%;
+	width: 100%;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+#move {
+	font-weight: bold;
+}
+	</style>
+<script src="/socket.io/socket.io.js"></script>
+<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
+<script>
+$(function() {
+	
+	var parentNodeId;
+	var validSquares;
+	var imgTag;
+	var pieceHeld;
+	var touchScreen;
+	var txt = "";
+	
+	function enterSquare(e) {
+		if (!pieceHeld) {
+			return;
+		}
+		var newSquareId = e.target.id;
+		if (!newSquareId) {
+			newSquareId = e.target.parentNode.id;
+		}
+		if (validSquares.includes(newSquareId) || validSquares.includes("x"+newSquareId)) {
+			//$("#"+newSquareId).css("box-sizing", "border-box");
+			var width = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight);
+			width /= 10;
+			var fivePerc = width/10;
+			width -= (fivePerc*2);
+			$("#"+newSquareId).css("width", width+"px");
+			$("#"+newSquareId).css("padding-top", width+"px");
+			$("#"+newSquareId).css("border", fivePerc + "px solid lime");
+		}
+	}
+	
+	function leaveSquare(e) {
+		if (!pieceHeld) {
+			return;
+		}
+		var newSquareId = e.target.id;
+		if (!newSquareId) {
+			newSquareId = e.target.parentNode.id;
+		}
+		if (validSquares.includes(newSquareId) || validSquares.includes("x"+newSquareId)) {
+			var width = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight);
+			width /= 10;
+			$("#"+newSquareId).css("width", width+"px");
+			$("#"+newSquareId).css("padding-top", width+"px");
+			$("#"+newSquareId).css("border", "");
+		}
+	}
+	
+	function releasePiece(e) {
+		if (!pieceHeld) {
+			return;
+		}
+		pieceHeld = false;
+		var targetObject = e.target;
+		if (e.changedTouches) {
+			var changedTouch = e.changedTouches[e.changedTouches.length-1];
+			targetObject = document.elementFromPoint(changedTouch.clientX, changedTouch.clientY);
+		}
+		if (!validSquares.includes(targetObject.id) && !validSquares.includes("x"+targetObject.parentNode.id)) {
+			$("#"+parentNodeId).html(imgTag);
+			parentNodeId = "";
+			validSquares = [];
+			return;
+		}
+		var newSquareId = targetObject.id;
+		if (!newSquareId) {
+			newSquareId = targetObject.parentNode.id;
+		}
+		$("#"+newSquareId).css("box-sizing", "");
+		var width = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight);
+		width /= 10;
+		$("#"+newSquareId).css("width", width+"px");
+		$("#"+newSquareId).css("padding-top", width+"px");
+		$("#"+newSquareId).css("border", "");
+		var newSquareContent = boardMatrix[newSquareId.charAt(0)][newSquareId.charAt(1)];
+		var squareContent = boardMatrix[parentNodeId.charAt(0)][parentNodeId.charAt(1)];
+		if (newSquareContent == "") {
+			sendMove(squareContent+parentNodeId+newSquareId);
+		}
+		else {
+			sendMove(squareContent+parentNodeId+newSquareId+"x"+newSquareContent);
+		}
+		parentNodeId = "";
+		validSquares = [];
+	}
+	
+	function touchPiece(e) {
+		if (currentPlayerColour != gameStatus.move) {
+			return;
+		}
+		e.preventDefault();
+		parentNodeId = e.target.parentNode.id;
+		var squareContent = boardMatrix[parentNodeId.charAt(0)][parentNodeId.charAt(1)];
+		if (typeof squareContent == "undefined" || squareContent.charAt(0) == "" || squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+			return;
+		}
+		var parentNodeIdString = "#"+parentNodeId;
+		imgTag = $(parentNodeIdString).html();
+		validSquares = getValidSquares(parentNodeId);
+		if (!touchScreen) {
+			$(parentNodeIdString).empty();
+		}
+		pieceHeld = true;
+	}
+	
+	function getValidSquares(idString) {
+		var letterString = idString.charAt(0);
+		var numberString = idString.charAt(1);
+		var piece = boardMatrix[letterString][numberString].charAt(1);
+		var validDirections = getValidDirections(letterString, numberString, piece);
+		var out = [];
+		if (piece == "p") { // pawn
+			if (currentPlayerColour == "white") {
+				var nextRowString = (parseInt(numberString)+1).toString();
+				if (boardMatrix[letterString][nextRowString] == "" && validDirections.includes("|")) {
+					out.push(letterString+nextRowString);
+					if (numberString == "2") {
+						nextRowString = (parseInt(nextRowString)+1).toString();
+						if (boardMatrix[letterString][nextRowString] == "") {
+							out.push(letterString+nextRowString);
+						}
+					}
+				}
+				var nextColumnString;
+				if (letterString != "a" && validDirections.includes("\\")) {
+					nextColumnString = numberToString[stringToNumber[letterString]-1];
+					if (boardMatrix[nextColumnString][nextRowString].charAt(0) == "b") {
+						out.push("x"+nextColumnString+nextRowString);
+					}
+				}
+				if (letterString != "h" && validDirections.includes("/")) {
+					nextColumnString = numberToString[stringToNumber[letterString]+1];
+					if (boardMatrix[nextColumnString][nextRowString].charAt(0) == "b") {
+						out.push("x"+nextColumnString+nextRowString);
+					}
+				}
+			}
+			else { // currentPlayerColour == "black"
+				var nextRowString = (parseInt(numberString)-1).toString();
+				if (boardMatrix[letterString][nextRowString] == "" && validDirections.includes("|")) {
+					out.push(letterString+nextRowString);
+					if (numberString == "7") {
+						nextRowString = (parseInt(nextRowString)-1).toString();
+						if (boardMatrix[letterString][nextRowString] == "") {
+							out.push(letterString+nextRowString);
+					}
+				}
+
+				}
+				var nextColumnString;
+				if (letterString != "a" && validDirections.includes("\\")) {
+					nextColumnString = numberToString[stringToNumber[letterString]-1];
+					if (boardMatrix[nextColumnString][nextRowString].charAt(0) == "w") {
+						out.push("x"+nextColumnString+nextRowString);
+					}
+				}
+				if (letterString != "h" && validDirections.includes("/")) {
+					nextColumnString = numberToString[stringToNumber[letterString]+1];
+					if (boardMatrix[nextColumnString][nextRowString].charAt(0) == "w") {
+						out.push("x"+nextColumnString+nextRowString);
+					}
+				}
+			}
+		}
+		if (piece == "r" || piece == "q") { // rook
+			if (validDirections.includes("|")) {
+				var nextRow = parseInt(numberString) + 1;
+				while (nextRow < 9) {
+					var squareContent = boardMatrix[letterString][nextRow.toString()];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+letterString+nextRow.toString());
+						}
+						break;
+					}
+					out.push(letterString+nextRow.toString());
+					nextRow++;
+				}
+				nextRow = parseInt(numberString) - 1;
+				while (nextRow > 0) {
+					var squareContent = boardMatrix[letterString][nextRow.toString()];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+letterString+nextRow.toString());
+						}
+						break;
+					}
+					out.push(letterString+nextRow.toString());
+					nextRow--;
+				}
+			}
+			if (validDirections.includes("-")) {
+				
+				var nextColumnNumber = stringToNumber[letterString] + 1;
+				while (nextColumnNumber < 9) {
+					var nextColumnString = numberToString[nextColumnNumber];
+					var squareContent = boardMatrix[nextColumnString][numberString];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+nextColumnString+numberString);
+						}
+						break;
+					}
+					out.push(nextColumnString+numberString);
+					nextColumnNumber++;
+				}
+				nextColumnNumber = stringToNumber[letterString] - 1;
+				while (nextColumnNumber > 0) {
+					var nextColumnString = numberToString[nextColumnNumber];
+					var squareContent = boardMatrix[nextColumnString][numberString];
+					if (squareContent != "") {
+						var nextColumnString = numberToString[nextColumnNumber];
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+nextColumnString+numberString);
+						}
+						break;
+					}
+					out.push(nextColumnString+numberString);
+					nextColumnNumber--;
+				}
+			}
+			console.log(out);
+		}
+		if (piece == "b" || piece == "q") { // bishop
+			var diagonals = getDiagonals(idString);
+			if (validDirections.includes("/")) {
+				for (var i = 0; i < diagonals.sw.length; i++) {
+					var square = diagonals.sw[i];
+					var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+square);
+						}
+						break;
+					}
+					out.push(square);
+				}
+				for (var i = 0; i < diagonals.ne.length; i++) {
+					var square = diagonals.ne[i];
+					var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+square);
+						}
+						break;
+					}
+					out.push(square);
+				}
+			}
+			if (validDirections.includes("\\")) {
+				for (var i = 0; i < diagonals.nw.length; i++) {
+					var square = diagonals.nw[i];
+					var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+square);
+						}
+						break;
+					}
+					out.push(square);
+				}
+				for (var i = 0; i < diagonals.se.length; i++) {
+					var square = diagonals.se[i];
+					var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+					if (squareContent != "") {
+						if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+							out.push("x"+square);
+						}
+						break;
+					}
+					out.push(square);
+				}
+			}
+		}
+		if (piece == "n" && validDirections.includes("n")) {
+			var letterPlusTwo = stringToNumber[letterString]+2;
+			var letterPlusOne = stringToNumber[letterString]+1;
+			var letterMinusTwo = stringToNumber[letterString]-2;
+			var letterMinusOne = stringToNumber[letterString]-1;
+			var numberPlusTwo = parseInt(numberString)+2;
+			var numberPlusOne = parseInt(numberString)+1;
+			var numberMinusTwo = parseInt(numberString)-2;
+			var numberMinusOne = parseInt(numberString)-1;
+			var newLetterString;
+			var newNumberString;
+			for (var i = 0; i < 8; i++) {
+				if (letterPlusOne < 9 && numberPlusTwo < 9) {
+					var newLetterString = numberToString[letterPlusOne];
+					var newNumberString = numberPlusTwo.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterPlusTwo < 9 && numberPlusOne < 9) {
+					var newLetterString = numberToString[letterPlusTwo];
+					var newNumberString = numberPlusOne.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterPlusOne < 9 && numberMinusTwo > 0) {
+					var newLetterString = numberToString[letterPlusOne];
+					var newNumberString = numberMinusTwo.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterPlusTwo < 9 && numberMinusOne > 0) {
+					var newLetterString = numberToString[letterPlusTwo];
+					var newNumberString = numberMinusOne.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterMinusTwo > 0 && numberPlusOne < 9) {
+					var newLetterString = numberToString[letterMinusTwo];
+					var newNumberString = numberPlusOne.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterMinusOne > 0 && numberPlusTwo < 9) {
+					var newLetterString = numberToString[letterMinusOne];
+					var newNumberString = numberPlusTwo.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterMinusTwo > 0 && numberMinusOne > 0) {
+					var newLetterString = numberToString[letterMinusTwo];
+					var newNumberString = numberMinusOne.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+				if (letterMinusOne > 0 && numberMinusTwo > 0) {
+					var newLetterString = numberToString[letterMinusOne];
+					var newNumberString = numberMinusTwo.toString();
+					out.push(getKnightSquare(newLetterString, newNumberString));
+				}
+			}
+		}
+		if (piece == "k") {
+			var nw = [stringToNumber[letterString]-1, parseInt(numberString)+1];
+			var n = [stringToNumber[letterString], parseInt(numberString)+1];
+			var ne = [stringToNumber[letterString]+1, parseInt(numberString)+1];
+			var w = [stringToNumber[letterString]-1, parseInt(numberString)];
+			var e = [stringToNumber[letterString]+1, parseInt(numberString)];
+			var sw = [stringToNumber[letterString]-1, parseInt(numberString)-1];
+			var s = [stringToNumber[letterString], parseInt(numberString)-1];
+			var se = [stringToNumber[letterString]+1, parseInt(numberString)-1];
+			var squares = [nw, n, ne, w, e, sw, s, se];
+			for (var i = 0; i < squares.length; i++) {
+				if (Math.max(squares[i][0], squares[i][1]) > 8 || Math.min(squares[i][0], squares[i][1]) < 1) {
+					continue;
+				}
+				var squareContent = boardMatrix[numberToString[squares[i][0]]][squares[i][1].toString()];
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					continue;
+				}
+				if (!threatened(squares[i])) {
+					if (squareContent.charAt(0) == "") {
+						out.push(numberToString[squares[i][0]]+squares[i][1].toString());
+					}
+					else {
+						out.push("x"+numberToString[squares[i][0]]+squares[i][1].toString());
+					}
+				}
+			}
+		}		
+		return out;
+	}
+	
+	function threatened(square) {
+		var letterIndex = square[0];
+		var numberIndex = square[1];
+		for (var i = letterIndex+1; i < 9; i++) {
+			var squareContent = boardMatrix[numberToString[i]][numberIndex.toString()];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "r" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == letterIndex+1 && squareContent.charAt(1) == "k") {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = letterIndex-1; i > 0; i--) {
+			var squareContent = boardMatrix[numberToString[i]][numberIndex.toString()];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "r" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == letterIndex-1 && squareContent.charAt(1) == "k") {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = numberIndex+1; i < 9; i++) {
+			var squareContent = boardMatrix[numberToString[letterIndex]][i.toString()];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "r" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == numberIndex+1 && squareContent.charAt(1) == "k") {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = numberIndex-1; i > 0; i--) {
+			var squareContent = boardMatrix[numberToString[letterIndex]][i.toString()];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "r" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == numberIndex-1 && squareContent.charAt(1) == "k") {
+					return true;
+				}
+				break;
+			}
+		}
+		var diagonals = getDiagonals(numberToString[square[0]]+square[1].toString());
+		for (var i = 0; i < diagonals.nw.length; i++) {
+			var square = diagonals.nw[i];
+			var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "b" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == 0 && (squareContent.charAt(1) == "k" || (squareContent.charAt(1) == "p" && currentPlayerColour == "white"))) {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = 0; i < diagonals.ne.length; i++) {
+			var square = diagonals.ne[i];
+			var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "b" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == 0 && (squareContent.charAt(1) == "k" || (squareContent.charAt(1) == "p" && currentPlayerColour == "white"))) {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = 0; i < diagonals.sw.length; i++) {
+			var square = diagonals.sw[i];
+			var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "b" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == 0 && (squareContent.charAt(1) == "k" || (squareContent.charAt(1) == "p" && currentPlayerColour == "black"))) {
+					return true;
+				}
+				break;
+			}
+		}
+		for (var i = 0; i < diagonals.se.length; i++) {
+			var square = diagonals.se[i];
+			var squareContent = boardMatrix[square.charAt(0)][square.charAt(1)];
+			if (squareContent != "") {
+				if (squareContent.charAt(0) == currentPlayerColour.charAt(0)) {
+					break;
+				}
+				if (squareContent.charAt(1) == "b" || squareContent.charAt(1) == "q") {
+					return true;
+				}
+				if (i == 0 && (squareContent.charAt(1) == "k" || (squareContent.charAt(1) == "p" && currentPlayerColour == "black"))) {
+					return true;
+				}
+				break;
+			}
+		}
+		var letterPlusTwo = letterIndex+2;
+		var letterPlusOne = letterIndex+1;
+		var letterMinusTwo = letterIndex-2;
+		var letterMinusOne = letterIndex-1;
+		var numberPlusTwo = numberIndex+2;
+		var numberPlusOne = numberIndex+1;
+		var numberMinusTwo = numberIndex-2;
+		var numberMinusOne = numberIndex-1;
+		var knightRange = [
+			[letterPlusTwo, numberPlusOne], [letterPlusTwo, numberMinusOne],
+			[letterPlusOne, numberPlusTwo], [letterPlusOne, numberMinusTwo],
+			[letterMinusTwo, numberPlusOne], [letterMinusTwo, numberMinusOne],
+			[letterMinusOne, numberPlusTwo], [letterMinusOne, numberMinusTwo]
+		];
+		for (var i = 0; i < knightRange.length; i++) {
+			if (
+				knightRange[i][0] > 0 && knightRange[i][1] > 0 && 
+				knightRange[i][0] < 9 && knightRange[i][1] < 9
+			) {
+				var squareContent = boardMatrix[numberToString[knightRange[i][0]]][knightRange[i][1].toString()];
+				if (squareContent.charAt(0) != currentPlayerColour.charAt(0) && squareContent.charAt(1) == "n") {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	
+	function getKnightSquare(letterString, numberString) {
+		console.log(letterString);
+		console.log(numberString);
+		var squareContent = boardMatrix[letterString][numberString];
+		if (squareContent == "") {
+			return letterString+numberString;
+		}
+		else {
+			if (squareContent.charAt(0) != currentPlayerColour.charAt(0)) {
+				return "x"+letterString+numberString;
+			}
+		}
+	}
+	
+	function getValidDirections(letterString, numberString, piece) {
+		if (piece == "k") {
+			return ["|", "-", "\\", "/"];
+		}
+		var kingPos = (currentPlayerColour == "white" ? gameStatus.positions.white.king : gameStatus.positions.black.king);
+		var kingRelPos;
+		if (kingPos.charAt(0) == letterString) {
+			if (parseInt(kingPos.charAt(1)) > parseInt(numberString)) {
+				kingRelPos = "n";
+			}
+			else {
+				kingRelPos = "s";
+			}
+		}
+		if (kingPos.charAt(1) == numberString) {
+			if (stringToNumber[kingPos.charAt(0)] > stringToNumber[letterString]) {
+				kingRelPos = "e";
+			}
+			else {
+				kingRelPos = "w";
+			}
+		}
+		var diagonals = getDiagonals(letterString+numberString);
+		for (var key in diagonals) {
+			if (diagonals[key].includes(kingPos)) {
+				kingRelPos = key;
+				break;
+			}
+		}
+		if (typeof kingRelPos === 'undefined') { // king not in s, n, e, w, etc. direction
+			if (piece == "n") {
+				return ["n"];
+			}
+			return ["|", "-", "\\", "/"];
+		}
+		if(isBound(kingRelPos, letterString, numberString)) {
+			if (piece == "n") {
+				return [];
+			}
+			if (kingRelPos == "n" || kingRelPos == "s") {
+				return ["|"];
+			}
+			if (kingRelPos == "e" || kingRelPos == "w") {
+				return ["-"];
+			}
+			if (kingRelPos == "sw" || kingRelPos == "ne") {
+				return ["/"];
+			}
+			return ["\\"];
+		}
+		if (piece == "n") {
+			return ["n"];
+		}
+		return ["|", "-", "\\", "/"];
+	}
+	
+	function isBound(kingRelPos, letterString, numberString) {
+		var ownColourFirstLetter = currentPlayerColour.charAt(0);
+		var opponentColourFirstLetter = (currentPlayerColour == "white" ? "black" : "white");
+		if (kingRelPos == "w") {
+			if (letterString == "h") {
+				return false;
+			}
+			var column = numberToString[stringToNumber[letterString]-1];
+			while (boardMatrix[column][numberString] != ownColourFirstLetter+"k") {
+				if (boardMatrix[column][numberString] != "") {
+					return false;
+				}
+				column = numberToString[stringToNumber[column]-1];
+			}
+			column = numberToString[stringToNumber[letterString]+1];
+			while (column != "h") {
+				if (boardMatrix[column][numberString] != "") {
+					if (boardMatrix[column][numberString] == opponentColourFirstLetter+"q" || boardMatrix[column][numberString] == opponentColourFirstLetter+"r") {
+						return true;
+					}
+					return false;
+				}
+				column = numberToString[stringToNumber[column]+1];
+			}
+			if (boardMatrix[column][numberString] == opponentColourFirstLetter+"q" || boardMatrix[column][numberString] == opponentColourFirstLetter+"r") {
+				return true;
+			}
+			return false;
+		}
+		if (kingRelPos == "e") {
+			if (letterString == "a") {
+				return false;
+			}
+			var column = numberToString[stringToNumber[letterString]+1];
+			while (boardMatrix[column][numberString] != ownColourFirstLetter+"k") {
+				if (boardMatrix[column][numberString] != "") {
+					return false;
+				}
+				column = numberToString[stringToNumber[column]+1];
+			}
+			column = numberToString[stringToNumber[letterString]-1];
+			while (column != "a") {
+				if (boardMatrix[column][numberString] != "") {
+					if (boardMatrix[column][numberString] == opponentColourFirstLetter+"q" || boardMatrix[column][numberString] == opponentColourFirstLetter+"r") {
+						return true;
+					}
+					return false;
+				}
+				column = numberToString[stringToNumber[column]-1];
+			}
+			if (boardMatrix[column][numberString] == opponentColourFirstLetter+"q" || boardMatrix[column][numberString] == opponentColourFirstLetter+"r") {
+				return true;
+			}
+			return false;
+		}
+		if (kingRelPos == "s") {
+			if (numberString == "8") {
+				return false;
+			}
+			var row = numberToString[stringToNumber[numberString]-1];
+			while (boardMatrix[letterString][row] != ownColourFirstLetter+"k") {
+				if (boardMatrix[letterString][row] != "") {
+					return false;
+				}
+				row = numberToString[stringToNumber[row]-1];
+			}
+			row = numberToString[stringToNumber[numberString]+1];
+			while (row != "8") {
+				if (boardMatrix[letterString][row] != "") {
+					if (boardMatrix[letterString][row] == opponentColourFirstLetter+"q" || boardMatrix[letterString][row] == opponentColourFirstLetter+"r") {
+						return true;
+					}
+					return false;
+				}
+				row = numberToString[stringToNumber[row]+1];
+			}
+			if (boardMatrix[letterString][row] == opponentColourFirstLetter+"q" || boardMatrix[letterString][row] == opponentColourFirstLetter+"r") {
+				return true;
+			}
+			return false;
+		}
+		if (kingRelPos == "n") {
+			if (numberString == "1") {
+				return false;
+			}
+			var row = numberToString[stringToNumber[numberString]+1];
+			while (boardMatrix[letterString][row] != ownColourFirstLetter+"k") {
+				if (boardMatrix[letterString][row] != "") {
+					return false;
+				}
+				row = numberToString(stringToNumber(row)+1);
+			}
+			row = numberToString[stringToNumber[numberString]-1];
+			while (row != "1") {
+				if (boardMatrix[letterString][row] != "") {
+					if (boardMatrix[letterString][row] == opponentColourFirstLetter+"q" || boardMatrix[letterString][row] == opponentColourFirstLetter+"r") {
+						return true;
+					}
+					return false;
+				}
+				row = numberToString[stringToNumber[row]-1];
+			}
+			if (boardMatrix[letterString][row] == opponentColourFirstLetter+"q" || boardMatrix[letterString][row] == opponentColourFirstLetter+"r") {
+				return true;
+			}
+			return false;
+		}
+		if (kingRelPos == "sw") {
+			if (letterString == "h" || numberString == "8") {
+				return false;
+			}
+			var diagonals = getDiagonals(letterString+numberString);
+			for (var i = 0; i < diagonals.sw.length; i++) {
+				var diagonalSquare = diagonals.sw[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == ownColourFirstLetter+"k") {
+						break;
+					}
+					return false;
+				}
+			}
+			for (var i = 0; i < diagonals.ne.length; i++) {
+				var diagonalSquare = diagonals.ne[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == opponentColourFirstLetter+"q" || piece == opponentColourFirstLetter+"b") {
+						return true;
+					}
+					return false;
+				}
+			}
+			return false;
+		}
+		if (kingRelPos == "se") {
+			if (letterString == "a" || numberString == "8") {
+				return false;
+			}
+			var diagonals = getDiagonals(letterString+numberString);
+			for (var i = 0; i < diagonals.se.length; i++) {
+				var diagonalSquare = diagonals.se[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == ownColourFirstLetter+"k") {
+						break;
+					}
+					return false;
+				}
+			}
+			for (var i = 0; i < diagonals.nw.length; i++) {
+				var diagonalSquare = diagonals.nw[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == opponentColourFirstLetter+"q" || piece == opponentColourFirstLetter+"b") {
+						return true;
+					}
+					return false;
+				}
+			}
+			return false;
+		}
+		if (kingRelPos == "nw") {
+			if (letterString == "h" || numberString == "1") {
+				return false;
+			}
+			var diagonals = getDiagonals(letterString+numberString);
+			for (var i = 0; i < diagonals.nw.length; i++) {
+				var diagonalSquare = diagonals.nw[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == ownColourFirstLetter+"k") {
+						break;
+					}
+					return false;
+				}
+			}
+			for (var i = 0; i < diagonals.se.length; i++) {
+				var diagonalSquare = diagonals.se[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == opponentColourFirstLetter+"q" || piece == opponentColourFirstLetter+"b") {
+						return true;
+					}
+					return false;
+				}
+			}
+			return false;
+		}
+		if (kingRelPos == "ne") {
+			if (letterString == "a" || numberString == "1") {
+				return false;
+			}
+			var diagonals = getDiagonals(letterString+numberString);
+			for (var i = 0; i < diagonals.ne.length; i++) {
+				var diagonalSquare = diagonals.ne[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == ownColourFirstLetter+"k") {
+						break;
+					}
+					return false;
+				}
+			}
+			for (var i = 0; i < diagonals.sw.length; i++) {
+				var diagonalSquare = diagonals.sw[i];
+				var piece = boardMatrix[diagonalSquare.charAt(0)][diagonalSquare.charAt(1)];
+				if (piece != "") {
+					if (piece == opponentColourFirstLetter+"q" || piece == opponentColourFirstLetter+"b") {
+						return true;
+					}
+					return false;
+				}
+			}
+			return false;
+		}
+	}
+	
+	function getDiagonals(square) {
+		var letterString = square.charAt(0);
+		var numberString = square.charAt(1);
+		var out = {
+			"sw": [],
+			"nw": [],
+			"se": [],
+			"ne": []
+		}
+		while (letterString != "a" && numberString != "1") {
+			letterString = numberToString[stringToNumber[letterString]-1];
+			numberString = (parseInt(numberString)-1).toString();
+			out.sw.push(letterString+numberString);
+		}
+		letterString = square.charAt(0);
+		numberString = square.charAt(1);
+		while (letterString != "a" && numberString != "8") {
+			letterString = numberToString[stringToNumber[letterString]-1];
+			numberString = (parseInt(numberString)+1).toString();
+			out.nw.push(letterString+numberString);
+		}
+		letterString = square.charAt(0);
+		numberString = square.charAt(1);
+		while (letterString != "h" && numberString != "1") {
+			letterString = numberToString[stringToNumber[letterString]+1];
+			numberString = (parseInt(numberString)-1).toString();
+			out.se.push(letterString+numberString);
+		}
+		letterString = square.charAt(0);
+		numberString = square.charAt(1);
+		while (letterString != "h" && numberString != "8") {
+			letterString = numberToString[stringToNumber[letterString]+1];
+			numberString = (parseInt(numberString)+1).toString();
+			out.ne.push(letterString+numberString);
+		}
+		return out;
+	}
+
+	function setup(gameStatus) {
+		setBoardSize();
+		$("#board").off().on("mousedown", function(e) {
+			touchPiece(e);
+		});
+		
+		document.getElementById("board").addEventListener("touchstart", function(e) {
+			touchScreen = true;
+			touchPiece(e);
+		}); // for mobile clients
+		$(document).off().on("mouseup", function(e) {
+			releasePiece(e);
+		});
+		document.getElementById("board").addEventListener("touchend", function(e) {
+			releasePiece(e);
+		}); // for mobile clients
+		var columns = ["a", "b", "c", "d", "e", "f", "g", "h"];
+		var rows = ["1", "2", "3", "4", "5", "6", "7", "8"];
+		for (var i = 0; i < 8; i++) {
+			for (var j = 0; j < 8; j++) {
+				$("#" + columns[i] + rows[j]).hover(function(e){
+					enterSquare(e);
+				}, function(e) {
+					leaveSquare(e);
+				});
+			}
+		}
+		// set up white player's pieces
+		var pos = gameStatus.positions.white;
+		var square;
+		var squareId;
+		for (var i = 0; i < pos.pawns.length; i++) {
+			square = pos.pawns[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.white_pawn +' alt="White Pawn">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "wp";
+		}
+		for (var i = 0; i < pos.rooks.length; i++) {
+			square = pos.rooks[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.white_rook +' alt="White Rook">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "wr";
+		}
+		for (var i = 0; i < pos.bishops.length; i++) {
+			square = pos.bishops[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.white_bishop +' alt="White Bishop">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "wb";
+		}
+		for (var i = 0; i < pos.knights.length; i++) {
+			square = pos.knights[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.white_knight +' alt="White Knight">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "wn";
+		}
+		for (var i = 0; i < pos.queens.length; i++) {
+			square = pos.queens[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.white_queen +' alt="White Queen">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "wq";
+		}
+		square = pos.king;
+		squareIdString = "#"+square;
+		$(squareIdString).html('<img class="piece" src=' + imgSources.white_king +' alt="White King">');
+		boardMatrix[square.charAt(0)][square.charAt(1)] = "wk";
+
+		// set up black player's pieces
+		pos = gameStatus.positions.black;
+		for (var i = 0; i < pos.pawns.length; i++) {
+			square = pos.pawns[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.black_pawn +' alt="Black Pawn">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "bp";			
+		}
+		for (var i = 0; i < pos.rooks.length; i++) {
+			square = pos.rooks[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.black_rook +' alt="Black Rook">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "br";
+		}
+		for (var i = 0; i < pos.bishops.length; i++) {
+			square = pos.bishops[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.black_bishop +' alt="Black Bishop">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "bb";
+		}
+		for (var i = 0; i < pos.queens.length; i++) {
+			square = pos.queens[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.black_queen +' alt="Black Queen">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "bq";
+		}
+		for (var i = 0; i < pos.knights.length; i++) {
+			square = pos.knights[i];
+			squareIdString = "#"+square;
+			$(squareIdString).html('<img class="piece" src=' + imgSources.black_knight +' alt="Black Knight">');
+			boardMatrix[square.charAt(0)][square.charAt(1)] = "bn";
+		}
+		square = pos.king;
+		squareIdString = "#"+square;
+		$(squareIdString).html('<img class="piece" src=' + imgSources.black_king +' alt="Black King">');
+		boardMatrix[square.charAt(0)][square.charAt(1)] = "bk";
+	}
+	
+	function writeGameInfo() {
+		var text = lang.white + ": " + gameStatus.white + ". ";
+		text += lang.black + ": " + gameStatus.black + ". ";
+		text += lang.you_are + " ";
+		var text2;
+		if (playerName == gameStatus.white) {
+			text += lang.white.toLowerCase() + ".";
+			if (gameStatus.move == "white") {
+				text2 = lang.your_move;
+			}
+			else {
+				text2 = lang.waiting_for_black;
+			}
+		}
+		else {
+			text += lang.black.toLowerCase() + ".";
+			if (gameStatus.move == "black") {
+				text2 = lang.your_move;
+			}
+			else {
+				text2 = lang.waiting_for_white;
+			}
+		}
+		$("#gameinfo").html(text);
+		$("#move").html(text2);
+	}
+	
+	var gameId = ---GAMEID---;
+	var playerName = '---PLAYERNAME---';
+	var lang = ---LANG---;
+	var gameStatus = ---GAME---;
+	var currentPlayerColour;
+	if (gameStatus.white == playerName) {
+		currentPlayerColour = "white";
+	}
+	else {
+		currentPlayerColour = "black";
+	}
+
+	var imgSources = {
+		"white_king": "http://www.clker.com/cliparts/d/3/0/7/12205466061204605977portablejim_Chess_tile_-_King_3.svg.med.png",
+		"black_king": "http://www.clker.com/cliparts/3/8/d/6/12205466202120645650portablejim_Chess_tile_-_King_1.svg.med.png",
+		"white_queen": "http://www.clker.com/cliparts/2/d/b/3/1220546638446611812portablejim_Chess_tile_-_Queen_3.svg.med.png",
+		"black_queen": "http://www.clker.com/cliparts/3/2/8/3/122054664916136449portablejim_Chess_tile_-_Queen_1.svg.med.png",
+		"white_bishop": "http://www.clker.com/cliparts/0/b/a/3/12205465671996376634portablejim_Chess_tile_-_Bishop_1.svg.med.png",
+		"black_bishop": "http://www.clker.com/cliparts/2/2/f/a/12205465771421620738portablejim_Chess_tile_-_Bishop_2.svg",
+		"white_knight": "http://www.clker.com/cliparts/5/8/0/f/12205467171891699302portablejim_Chess_tile_-_Knight_2.svg.med.png",
+		"black_knight": "http://www.clker.com/cliparts/b/2/d/1/1220546725404626993portablejim_Chess_tile_-_Knight_3.svg.med.png",
+		"white_rook": "http://www.clker.com/cliparts/d/b/2/4/12205466671724840789portablejim_Chess_tile_-_Rook_3.svg.med.png",
+		"black_rook": "http://www.clker.com/cliparts/w/3/e/f/C/V/black-rook-md.png",
+		"white_pawn": "http://www.clker.com/cliparts/b/2/6/7/1220546691510955154portablejim_Chess_tile_-_Pawn_3.svg.med.png",
+		"black_pawn": "http://www.clker.com/cliparts/0/f/9/5/1220546699832264553portablejim_Chess_tile_-_Pawn_1.svg.med.png"
+	};
+	var imgTags = {
+		"wk": '<img class="piece" src=' + imgSources.white_king +' alt="White King">',
+		"bk": '<img class="piece" src=' + imgSources.black_king +' alt="Black King">',
+		"wq": '<img class="piece" src=' + imgSources.white_queen +' alt="White Queen">',
+		"bq": '<img class="piece" src=' + imgSources.black_queen +' alt="Black Queen">',
+		"wb": '<img class="piece" src=' + imgSources.white_bishop +' alt="White Bishop">',
+		"bb": '<img class="piece" src=' + imgSources.black_bishop +' alt="Black Bishop">',
+		"wn": '<img class="piece" src=' + imgSources.white_knight +' alt="White Knight">',
+		"bn": '<img class="piece" src=' + imgSources.black_knight +' alt="Black Knight">',
+		"wr": '<img class="piece" src=' + imgSources.white_rook +' alt="White Rook">',
+		"br": '<img class="piece" src=' + imgSources.black_rook +' alt="Black Rook">',
+		"wp": '<img class="piece" src=' + imgSources.white_pawn +' alt="White Pawn">',
+		"bp": '<img class="piece" src=' + imgSources.black_pawn +' alt="Black Pawn">',
+	};
+	
+	var boardMatrix = {
+		"a": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"b": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"c": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"d": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"e": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"f": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"g": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""},
+		"h": {"1": "", "2": "", "3": "", "4": "", "5": "", "6": "", "7": "", "8": ""}
+	};
+	var numberToString = {1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"};
+	var stringToNumber = {"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8};
+	var gameStatusPositions = {"wp": gameStatus.positions.white.pawns, "wr": gameStatus.positions.white.rooks, "wn": gameStatus.positions.white.knights, "wb": gameStatus.positions.white.bishops, "wq": gameStatus.positions.white.queens, "bp": gameStatus.positions.black.pawns, "br": gameStatus.positions.black.rooks, "bn": gameStatus.positions.black.knights, "bb": gameStatus.positions.black.bishops, "bq": gameStatus.positions.black.queens};
+	setup(gameStatus);
+	writeGameInfo();
+	
+	var socket = io();
+	var eventEmitter = io();
+	
+	sendMove = function(move) {
+		eventEmitter.emit("moveFromClient", gameId, move);
+	}
+	
+	socket.on('moveFromServer'+gameId, function(move) {
+		updateGame(move);
+    });
+	
+	function updateGame(move) {
+		var movedPiece = move.substring(0, 2);
+		var originSquareLetter = move.charAt(2);
+		var originSquareNumber = move.charAt(3);
+		var destinationSquareLetter = move.charAt(4);
+		var destinationSquareNumber = move.charAt(5);
+		if (move.length > 6) {
+			var capturedPiece = move.substring(7, 9);
+			var tempArray = gameStatusPositions[capturedPiece];
+			var index = tempArray.indexOf(destinationSquareLetter+destinationSquareNumber);
+			if (index > -1) {
+				tempArray.splice(index, 1);
+			}
+		}
+		boardMatrix[originSquareLetter][originSquareNumber] = "";
+		boardMatrix[destinationSquareLetter][destinationSquareNumber] = movedPiece;
+		$("#"+destinationSquareLetter+destinationSquareNumber).html(imgTags[movedPiece]);
+		$("#"+originSquareLetter+originSquareNumber).empty();
+		if (movedPiece.charAt(1) == "k") {
+			gameStatusPositions[movedPiece] = destinationSquareLetter+destinationSquareNumber;
+		}
+		else {
+			var index = gameStatusPositions[movedPiece].indexOf(originSquareLetter+originSquareNumber);
+			gameStatusPositions[movedPiece][index] = destinationSquareLetter+destinationSquareNumber;			
+		}
+
+		
+		/* UNCOMMENT TO ENABLE NETWORKING
+		*/
+		if (gameStatus.move == "white") {
+			gameStatus.move = "black";
+			if (currentPlayerColour == "white") {
+				$("#move").html(lang.waiting_for_black);
+			}
+			else {
+				$("#move").html(lang.your_move);
+			}
+		}
+		else {
+			gameStatus.move = "white";
+			if (currentPlayerColour == "white") {
+				$("#move").html(lang.your_move);
+			}
+			else {
+				$("#move").html(lang.waiting_for_white);
+			}
+		}
+		/*
+		*/
+
+	}
+	
+	function setBoardSize() {
+		var width = Math.min(document.documentElement.clientWidth, document.documentElement.clientHeight);
+		width /= 10;
+		$(".black, .white").css("width", width+"px");
+		$(".black, .white").css("padding-top", width+"px");
+	}
+});
+</script>
+  <body>
+    <div id="gameinfo"></div>
+	<div id="move"></div>
+	
+	<div id="board">
+		<div id="a8" class="white left"></div><div id="b8" class="black"></div><div id="c8" class="white"></div><div id="d8" class="black"></div><div id="e8" class="white"></div><div id="f8" class="black"></div><div id="g8" class="white"></div><div id="h8" class="black"></div>
+		<div id="a7" class="black left"></div><div id="b7" class="white"></div><div id="c7" class="black"></div><div id="d7" class="white"></div><div id="e7" class="black"></div><div id="f7" class="white"></div><div id="g7" class="black"></div><div id="h7" class="white"></div>
+		<div id="a6" class="white left"></div><div id="b6" class="black"></div><div id="c6" class="white"></div><div id="d6" class="black"></div><div id="e6" class="white"></div><div id="f6" class="black"></div><div id="g6" class="white"></div><div id="h6" class="black"></div>
+		<div id="a5" class="black left"></div><div id="b5" class="white"></div><div id="c5" class="black"></div><div id="d5" class="white"></div><div id="e5" class="black"></div><div id="f5" class="white"></div><div id="g5" class="black"></div><div id="h5" class="white"></div>
+		<div id="a4" class="white left"></div><div id="b4" class="black"></div><div id="c4" class="white"></div><div id="d4" class="black"></div><div id="e4" class="white"></div><div id="f4" class="black"></div><div id="g4" class="white"></div><div id="h4" class="black"></div>
+		<div id="a3" class="black left"></div><div id="b3" class="white"></div><div id="c3" class="black"></div><div id="d3" class="white"></div><div id="e3" class="black"></div><div id="f3" class="white"></div><div id="g3" class="black"></div><div id="h3" class="white"></div>
+		<div id="a2" class="white left"></div><div id="b2" class="black"></div><div id="c2" class="white"></div><div id="d2" class="black"></div><div id="e2" class="white"></div><div id="f2" class="black"></div><div id="g2" class="white"></div><div id="h2" class="black"></div>
+		<div id="a1" class="black left"></div><div id="b1" class="white"></div><div id="c1" class="black"></div><div id="d1" class="white"></div><div id="e1" class="black"></div><div id="f1" class="white"></div><div id="g1" class="black"></div><div id="h1" class="white"></div>
+	</div>
+	<div>Windows for chat and history go here!</div>
+  </body>
+</html>

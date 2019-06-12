@@ -1,0 +1,70 @@
+{
+  "white": "Gandalf",
+  "black": "Sauron",
+  "move": "white",
+  "positions": {
+    "white": {
+      "pawns": [
+        "a4",
+        "b4",
+        "c4",
+        "d4",
+        "f5",
+        "f2",
+        "g2",
+        "h2"
+      ],
+      "rooks": [
+        "a1",
+        "h1"
+      ],
+      "knights": [
+        "b1",
+        "g1"
+      ],
+      "bishops": [
+        "c1",
+        "f1"
+      ],
+      "queens": [
+        "d1"
+      ],
+      "king": "e1"
+    },
+    "black": {
+      "pawns": [
+        "a7",
+        "b5",
+        "c7",
+        "d5",
+        "e5",
+        "g5",
+        "h5"
+      ],
+      "rooks": [
+        "a8",
+        "h8"
+      ],
+      "knights": [
+        "b8",
+        "g8"
+      ],
+      "bishops": [
+        "c8",
+        "f8"
+      ],
+      "queens": [
+        "d8"
+      ],
+      "king": "e8"
+    }
+  },
+  "white_king_moved": "false",
+  "white_rook_a_moved": "false",
+  "white_rook_h_moved": "false",
+  "black_king_moved": "false",
+  "black_rook_a_moved": "false",
+  "black_rook_h_moved": "false",
+  "en_passant_square_white": "p3",
+  "en_passant_square_black": "d4"
+}
