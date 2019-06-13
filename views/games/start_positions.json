@@ -1,6 +1,8 @@
 {
 "white": "PLAYER_NAME_WHITE",
 "black": "PLAYER_NAME_BLACK",
+"white_email": "PLAYER_WHITE_EMAIL",
+"black_email": "PLAYER_BLACK_EMAIL",
 "move": "white",
 "positions": {
 	"white": {

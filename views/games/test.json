@@ -1,6 +1,8 @@
 {
   "white": "Gandalf",
   "black": "Sauron",
+  "white_email": "gandalf@rivendell.org",
+  "black_email": "sauron@mordor.com",
   "move": "white",
   "positions": {
     "white": {
