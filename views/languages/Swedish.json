@@ -1,7 +1,7 @@
 {
 "LANGUAGE_IN_ENGLISH": "Swedish",
 "LANGUAGE_IN_NATIVE": "Svenska",
-"choose_a_game": "Välj ett spel!",
+"choose_a_game": "Välj ett redan påbörjat parti!",
 "log_in": "Logga in!",
 "enter_your_name": "Skriv ditt namn!",
 "greeting": "Hej",
@@ -15,12 +15,18 @@
 "select_player": "Välj spelare:",
 "select_game": "Välj spel:",
 "or": "ELLER",
-"create_game": "Skapa ett spel och bjud in en vän via email:",
+"create_game": "Skapa ett nytt parti och bjud in en vän via email.",
 "start_game": "Börja spela!",
 "your_name": "Ditt namn:",
 "your_email": "Din email:",
 "friends_name": "Din väns namn:",
 "friends_email": "Din väns email:",
+"message_to_friend": "Personligt meddelande i inbjudan:",
+"sample_message": "Hej! Spela ett parti schack med mig!",
 "enter_your_name": "Skriv ditt namn:",
-"send": "Skicka"
+"has_invited_you": " har bjudit in dig att spela ett parti schack!",
+"invitation": "Hej ___PLAYER_2_NAME___! ___PLAYER_1_NAME___ har bjudit in dig på ett parti schack. Följ den här länken: ___LINK___ \n Hälsning från ___PLAYER_1_NAME___: ___MESSAGE___",
+"send": "Skicka",
+"confirmation_header": "Du har startat ett nytt parti schack med ___PLAYER_2_NAME___!",
+"confirmation_message": "Hej ___PLAYER_1_NAME___! Du har startat ett nytt parti schack med ___PLAYER_2_NAME___. Följ den här länken: ___LINK___"
 }

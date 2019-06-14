@@ -20,7 +20,8 @@ const server = express()
 const io = socketIO(server)
 
 io.on('connection', function(socket){
-	socket.on('newGame', function(player1Name, player1Email, player2Name, player2Email, millis) {
+	socket.on('newGame', function(player1Name, player1Email, player2Name, player2Email, message, millis, lang) {
+		var fs = require ('fs')
 		var startData = fs.readFileSync(__dirname + '/views/games/start_positions.json', 'utf-8');
 		var startJson = JSON.parse(startData);
 		var txt = JSON.stringify(startJson);
@@ -28,7 +29,7 @@ io.on('connection', function(socket){
 		txt = txt.replace(/PLAYER_NAME_BLACK/g, player2Name);
 		txt = txt.replace(/PLAYER_WHITE_EMAIL/g, player1Email);
 		txt = txt.replace(/PLAYER_BLACK_EMAIL/g, player2Email);
-		var fileName = __dirname + '/views/games/maxNbr.txt';
+		var fileName = __dirname + '/views/maxNbr.txt';
 		// the following two lines should really be synchronized but I can't be bothered
 		var maxNbr = parseInt(fs.readFileSync(fileName, 'utf-8'))+1;
 		fs.writeFile(fileName, maxNbr.toString(), function (err) {
@@ -37,6 +38,51 @@ io.on('connection', function(socket){
 		fileName = __dirname + '/views/games/' + maxNbr.toString() + '.json';
 		fs.writeFile(fileName, txt, function (err) {
 			if (err) throw err;
+		});
+		var nodemailer = require('nodemailer');
+		var fs = require('fs');
+		var password = fs.readFileSync(__dirname + '/views/password.txt', 'utf8');
+		var transporter = nodemailer.createTransport({
+			service: 'gmail',
+			auth: {
+				user: 'holgros.testmail@gmail.com',
+				pass: password
+			}
+		});
+		var langData = fs.readFileSync(__dirname + '/views/languages/' + lang + '.json', 'utf-8');
+		lang = JSON.parse(langData);
+		if (message == "") {
+			message = lang.sample_message;
+		}
+		var messageBody = lang.invitation.replace(/___PLAYER_1_NAME___/g, player1Name).replace(/___PLAYER_2_NAME___/g, player2Name).replace(/___LINK___/g, 'https://holgros-chess.herokuapp.com?name='+player2Name+'&game='+maxNbr+'&language='+lang.LANGUAGE_IN_ENGLISH).replace(/___MESSAGE___/g, message);
+		var mailOptions = {
+			from: player1Email,
+			replyTo: player1Email,
+			to: player2Email,
+			subject: player1Name + lang.has_invited_you,
+			text: messageBody
+		};
+		transporter.sendMail(mailOptions, function(error, info){
+			if (error) {
+				console.log(error);
+			} else {
+				console.log('Email sent: ' + info.response);
+			}
+		});
+		var messageBody = lang.confirmation_message.replace(/___PLAYER_1_NAME___/g, player1Name).replace(/___PLAYER_2_NAME___/g, player2Name).replace(/___LINK___/g, 'https://holgros-chess.herokuapp.com?name='+player2Name+'&game='+maxNbr+'&language='+lang.LANGUAGE_IN_ENGLISH);
+		var mailOptions = {
+			from: player2Email,
+			replyTo: player2Email,
+			to: player1Email,
+			subject: lang.confirmation_header.replace(/___PLAYER_2_NAME___/g, player2Name),
+			text: messageBody
+		};
+		transporter.sendMail(mailOptions, function(error, info){
+			if (error) {
+				console.log(error);
+			} else {
+				console.log('Email sent: ' + info.response);
+			}
 		});
 		io.emit('redirect'+millis, maxNbr);
 	});
@@ -195,6 +241,7 @@ function writePage(req, res) {
 				var currentTime = new Date();
 				var millis = currentTime.getTime();
 				var txt = '<script src="/socket.io/socket.io.js"></script>';
+				txt += '<p>Hello ' + playerName + '!<br>';
 				if (games.length > 0) {
 					txt += '<p>' + lang.select_game + '<br><select id="gamesdropdown">';
 					for (var i=0; i < games.length; i++) {
@@ -202,7 +249,7 @@ function writePage(req, res) {
 					}
 					txt += '</select><br><button onclick="window.open(\'?game=\'+document.getElementById(\'gamesdropdown\').value+\'&name=' + playerName + '\', \'_self\');">' + lang.start_game + '</button></p><p>' + lang.or + '</p>';
 				}
-				txt += '<p>Hello ' + playerName + '! ' + lang.create_game;
+				txt += lang.create_game;
 				//txt += lang.your_name;
 				txt += '<br><input type="hidden" id="player1Name" value="' + playerName + '"></input><br>';
 				txt += lang.your_email;
@@ -211,8 +258,10 @@ function writePage(req, res) {
 				txt += '<br><input type="text" id="player2Name"></input><br>';
 				txt += lang.friends_email;
 				txt += '<br><input type="text" id="player2Email"></input>';
-				txt += '<br><button onclick="var eventEmitter=io(); eventEmitter.emit(\'newGame\', document.getElementById(\'player1Name\').value, document.getElementById(\'player1Email\').value, document.getElementById(\'player2Name\').value, document.getElementById(\'player2Email\').value, ' + millis + ');">' + lang.start_game + '</button></p>';
-				txt += '<script>var socket = io(); socket.on("redirect' + millis + '", function(maxNbr) {window.open("?game=" + maxNbr + "&name="+document.getElementById("player1Name").value, \'_self\');});</script>';
+				txt += '<br>' + lang.message_to_friend;
+				txt += '<br><textarea rows="4" cols="50" id="message" placeholder="' + lang.sample_message + '"></textarea>';
+				txt += '<br>\n<button onclick="var eventEmitter=io();\neventEmitter.emit(\'newGame\', document.getElementById(\'player1Name\').value, document.getElementById(\'player1Email\').value, document.getElementById(\'player2Name\').value, document.getElementById(\'player2Email\').value, document.getElementById(\'message\').value, ' + millis + ', \'' + lang.LANGUAGE_IN_ENGLISH + '\');">' + lang.start_game + '</button></p>';
+				txt += '\n<script>\nvar socket = io(); \nsocket.on("redirect' + millis + '", function(maxNbr) {\nwindow.open("?game=" + maxNbr + "&name="+document.getElementById("player1Name").value, \'_self\');});\n</script>';
 				res.write(txt);
 				return res.end();
 			});
