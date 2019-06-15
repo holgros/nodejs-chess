@@ -79,8 +79,10 @@ io.on('connection', function(socket){
 		};
 		transporter.sendMail(mailOptions, function(error, info){
 			if (error) {
+				console.log('EMAIL SEND FAILURE!!!');
 				console.log(error);
 			} else {
+				console.log('EMAIL SEND SUCCESS!!!');
 				console.log('Email sent: ' + info.response);
 			}
 		});
