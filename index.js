@@ -69,7 +69,7 @@ io.on('connection', function(socket){
 				console.log('Email sent: ' + info.response);
 			}
 		});
-		var messageBody = lang.confirmation_message.replace(/___PLAYER_1_NAME___/g, player1Name).replace(/___PLAYER_2_NAME___/g, player2Name).replace(/___LINK___/g, 'https://holgros-chess.herokuapp.com?name='+player2Name+'&game='+maxNbr+'&language='+lang.LANGUAGE_IN_ENGLISH);
+		var messageBody = lang.confirmation_message.replace(/___PLAYER_1_NAME___/g, player1Name).replace(/___PLAYER_2_NAME___/g, player2Name).replace(/___LINK___/g, 'https://holgros-chess.herokuapp.com?name='+player1Name+'&game='+maxNbr+'&language='+lang.LANGUAGE_IN_ENGLISH);
 		var mailOptions = {
 			from: player2Email,
 			replyTo: player2Email,
@@ -79,10 +79,8 @@ io.on('connection', function(socket){
 		};
 		transporter.sendMail(mailOptions, function(error, info){
 			if (error) {
-				console.log('EMAIL SEND FAILURE!!!');
 				console.log(error);
 			} else {
-				console.log('EMAIL SEND SUCCESS!!!');
 				console.log('Email sent: ' + info.response);
 			}
 		});
