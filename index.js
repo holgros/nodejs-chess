@@ -88,18 +88,64 @@ io.on('connection', function(socket){
 	});
 	
 	socket.on('moveFromClient', function(gameId, move) {
+		console.log(move);
 		var fileName = './views/games/' + gameId + '.json';
 		var file = require(fileName);
 		var positions;
-		if (move.charAt(0) == 'w') {
+		if (file.move == 'white') {
 			file.en_passant_square_white = '';
 			positions = file.positions.white;
 			file.move = 'black';
+			if (move == '0-0') {
+				file.white_king_moved = true;
+				file.white_rook_h_moved = true;
+				positions.king = 'g1';
+				positions.rooks[positions.rooks.indexOf('h1')] = 'f1';
+				fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
+					if (err) return console.log(err);
+				});
+				io.emit('moveFromServer'+gameId, move);
+				return;
+
+			}
+			if (move == '0-0-0') {
+				file.white_king_moved = true;
+				file.white_rook_a_moved = true;
+				positions.king = 'c1';
+				positions.rooks[positions.rooks.indexOf('a1')] = 'd1';
+				fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
+					if (err) return console.log(err);
+				});
+				io.emit('moveFromServer'+gameId, move);
+				return;
+			}
 		}
 		else {
 			file.en_passant_square_black = '';
 			positions = file.positions.black;
 			file.move = 'white';
+			if (move == '0-0') {
+				file.black_king_moved = true;
+				file.black_rook_h_moved = true;
+				positions.king = 'g8';
+				positions.rooks[positions.rooks.indexOf('h8')] = 'f8';
+				fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
+					if (err) return console.log(err);
+				});
+				io.emit('moveFromServer'+gameId, move);
+				return;
+			}
+			if (move == '0-0-0') {
+				file.black_king_moved = true;
+				file.black_rook_a_moved = true;
+				positions.king = 'c8';
+				positions.rooks[positions.rooks.indexOf('a8')] = 'd8';
+				fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
+					if (err) return console.log(err);
+				});
+				io.emit('moveFromServer'+gameId, move);
+				return;
+			}
 		}
 		var oldSquare = move.substring(2,4);
 		var newSquare = move.substring(4,6);
@@ -119,7 +165,7 @@ io.on('connection', function(socket){
 					file.en_passant_square_white = move.charAt(2)+'3';
 				}
 				if (move.charAt(0) == 'b' && move.charAt(3) == '7' && move.charAt(5) == '5') {
-					file.en_passant_square_black = move.charAt(2)+'4';
+					file.en_passant_square_black = move.charAt(2)+'6';
 				}
 				arr = positions.pawns;
 			}
@@ -139,7 +185,7 @@ io.on('connection', function(socket){
 				arr = positions.rooks;
 			}
 			if (move.charAt(1) == 'n') {
-				arr = positions.rooks;
+				arr = positions.knights;
 			}
 			if (move.charAt(1) == 'b') {
 				arr = positions.bishops;
@@ -151,11 +197,17 @@ io.on('connection', function(socket){
 		}
 		if (move.charAt(6) == 'x') {
 			if (move.substring(7, 9) == 'wp') {
-				var index = file.positions.white.pawns.indexOf(move.substring(4,6));
+				var index = file.positions.white.pawns.indexOf(newSquare);
+				if (file.en_passant_square_white == newSquare && move.charAt(1) == 'p') {
+					index = file.positions.white.pawns.indexOf(newSquare.charAt(0)+'4');
+				}
 				file.positions.white.pawns.splice(index, 1);
 			}
 			if (move.substring(7, 9) == 'bp') {
-				var index = file.positions.black.pawns.indexOf(move.substring(4,6));
+				var index = file.positions.black.pawns.indexOf(newSquare);
+				if (file.en_passant_square_black == newSquare && move.charAt(1) == 'p') {
+					index = file.positions.black.pawns.indexOf(newSquare.charAt(0)+'5');
+				}
 				file.positions.black.pawns.splice(index, 1);
 			}
 			if (move.substring(7, 9) == 'wr') {
@@ -191,11 +243,62 @@ io.on('connection', function(socket){
 				file.positions.black.queens.splice(index, 1);
 			}
 		}
-
+		if (move.substring(0, 2) == "wp" && move.charAt(5) == "8") {
+			var newSquareId = move.substring(4,6);
+			var index = file.positions.white.pawns.indexOf(newSquareId);
+			file.positions.white.pawns.splice(index, 1);
+			if (move.charAt(move.length-1) == "q") {
+				file.positions.white.queens.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "n") {
+				file.positions.white.knights.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "r") {
+				file.positions.white.rooks.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "b") {
+				file.positions.white.bishops.push(newSquareId);
+			}
+		}
+		if (move.substring(0, 2) == "bp" && move.charAt(5) == "1") {
+			var newSquareId = move.substring(4,6);
+			var index = file.positions.black.pawns.indexOf(newSquareId);
+			file.positions.black.pawns.splice(index, 1);
+			if (move.charAt(move.length-1) == "q") {
+				file.positions.black.queens.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "n") {
+				file.positions.black.knights.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "r") {
+				file.positions.black.rooks.push(newSquareId);
+			}
+			if (move.charAt(move.length-1) == "b") {
+				file.positions.black.bishops.push(newSquareId);
+			}
+		}
+		file.history += '<li>'+move;
 		fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
-		  if (err) return console.log(err);
+			if (err) return console.log(err);
 		});
 		io.emit('moveFromServer'+gameId, move);
+	});
+	
+	socket.on('gameover', function(gameId, winner) {
+		var fileName = './views/games/' + gameId + '.json';
+		var file = require(fileName);
+		file.gameover = true;
+		file.winner = winner;
+		if (winner != 'stalemate') {
+			file.history += '#';
+		}
+		else {
+			file.history += '=';
+		}
+		fs.writeFile(fileName, JSON.stringify(file, null, 2), function (err) {
+			if (err) return console.log(err);
+		});
+		io.emit('gameover'+gameId, winner);
 	});
 });
 

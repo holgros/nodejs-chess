@@ -3,6 +3,8 @@
 "black": "PLAYER_NAME_BLACK",
 "white_email": "PLAYER_WHITE_EMAIL",
 "black_email": "PLAYER_BLACK_EMAIL",
+"gameover": false,
+"winner": "",
 "move": "white",
 "positions": {
 	"white": {
@@ -22,12 +24,13 @@
 		"king": "e8"
 	}
 },
-"white_king_moved": "false",
-"white_rook_a_moved": "false",
-"white_rook_h_moved": "false",
-"black_king_moved": "false",
-"black_rook_a_moved": "false",
-"black_rook_h_moved": "false",
+"white_king_moved": false,
+"white_rook_a_moved": false,
+"white_rook_h_moved": false,
+"black_king_moved": false,
+"black_rook_a_moved": false,
+"black_rook_h_moved": false,
 "en_passant_square_white": "",
-"en_passant_square_black": ""
+"en_passant_square_black": "",
+"history": ""
 }

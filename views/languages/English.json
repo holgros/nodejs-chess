@@ -28,5 +28,16 @@
 "invitation": "Hello ___PLAYER_2_NAME___! ___PLAYER_1_NAME___ has invited you for a game of chess. Please see the following link: ___LINK___ \n Message from ___PLAYER_1_NAME___: ___MESSAGE___",
 "send": "Submit",
 "confirmation_header": "You have started a new game of chess with ___PLAYER_2_NAME___!",
-"confirmation_message": "Hello ___PLAYER_1_NAME___! You have started a new game of chess with ___PLAYER_2_NAME___. Please see the following link: ___LINK___"
+"confirmation_message": "Hello ___PLAYER_1_NAME___! You have started a new game of chess with ___PLAYER_2_NAME___. Please see the following link: ___LINK___",
+"castling": "Castling?",
+"promote_to": "Promote to:",
+"select_piece": "select piece",
+"queen": "queen",
+"knight": "knight",
+"rook": "rook",
+"bishop": "bishop",
+"gameover_whitewinner": "Game over: white has won!",
+"gameover_blackwinner": "Game over: black has won!",
+"gameover_stalemate": "Game over: stalemate!",
+"game_history": "Game history"
 }

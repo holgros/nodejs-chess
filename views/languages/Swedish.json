@@ -28,5 +28,16 @@
 "invitation": "Hej ___PLAYER_2_NAME___! ___PLAYER_1_NAME___ har bjudit in dig på ett parti schack. Följ den här länken: ___LINK___ \n Hälsning från ___PLAYER_1_NAME___: ___MESSAGE___",
 "send": "Skicka",
 "confirmation_header": "Du har startat ett nytt parti schack med ___PLAYER_2_NAME___!",
-"confirmation_message": "Hej ___PLAYER_1_NAME___! Du har startat ett nytt parti schack med ___PLAYER_2_NAME___. Följ den här länken: ___LINK___"
+"confirmation_message": "Hej ___PLAYER_1_NAME___! Du har startat ett nytt parti schack med ___PLAYER_2_NAME___. Följ den här länken: ___LINK___",
+"castling": "Rockad?",
+"promote_to": "Promovera till:",
+"select_piece": "välj pjäs",
+"queen": "dam",
+"knight": "springare",
+"rook": "torn",
+"bishop": "löpare",
+"gameover_whitewinner": "Spelet är slut: vit har vunnit!",
+"gameover_blackwinner": "Spelet är slut: svart har vunnit!",
+"gameover_stalemate": "Spelet är slut: oavgjort!",
+"game_history": "Spelhistorik"
 }
