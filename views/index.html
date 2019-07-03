@@ -29,8 +29,9 @@
 	font-weight: bold;
 }
 #history { list-style-type: none; margin: 0; padding: 0; }
-      #history li { padding: 5px 10px; }
-      #history li:nth-child(even) { background: #eee; }
+#history li { padding: 5px 10px; }
+#history li:nth-child(even) { background: #eee; }
+#historydiv {overflow-y:scroll;}
 	</style>
 <script src="/socket.io/socket.io.js"></script>
 <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
@@ -1477,6 +1478,8 @@ $(function() {
 		width /= 10;
 		$(".black, .white").css("width", width+"px");
 		$(".black, .white").css("padding-top", width+"px");
+		var height = width*8;
+		$("#historydiv").css("max-height", height+"px");
 	}
 	
 	function mate(pos) {
@@ -1521,7 +1524,7 @@ $(function() {
 		<div id="a2" class="white left"></div><div id="b2" class="black"></div><div id="c2" class="white"></div><div id="d2" class="black"></div><div id="e2" class="white"></div><div id="f2" class="black"></div><div id="g2" class="white"></div><div id="h2" class="black"></div>
 		<div id="a1" class="black left"></div><div id="b1" class="white"></div><div id="c1" class="black"></div><div id="d1" class="white"></div><div id="e1" class="black"></div><div id="f1" class="white"></div><div id="g1" class="black"></div><div id="h1" class="white"></div>
 	</div>
-	<div><h1 id="historyheader"></h1>
+	<div id="historydiv"><h1 id="historyheader"></h1>
 	    <ol id="history"></ol>		
 	</div>
   </body>
