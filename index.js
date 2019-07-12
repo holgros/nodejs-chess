@@ -45,7 +45,7 @@ io.on('connection', function(socket){
 		var transporter = nodemailer.createTransport({
 			service: 'gmail',
 			auth: {
-				user: 'holgros.testmail@gmail.com',
+				user: 'holgros.chess@gmail.com',
 				pass: password
 			}
 		});
