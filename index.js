@@ -65,8 +65,8 @@ io.on('connection', function(socket){
 		transporter.sendMail(mailOptions, function(error, info){
 			if (error) {
 				console.log(error);
-				console.log('USERNAME: '+transporter.auth.user);
-				console.log('PASSWORD: '+transporter.auth.pass);
+				console.log('USERNAME: holgros.chess@gmail.com');
+				console.log('PASSWORD: '+password);
 			} else {
 				console.log('Email sent: ' + info.response);
 			}
